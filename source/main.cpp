@@ -1,7 +1,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 //тест подключение библиотеки с смэйком
-#include <glm/mat2x2.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 //библиотека для загрузк текстур, инклюдится в texture2DLoader
 //#include <stb_image/stb_image.h>
@@ -52,7 +54,8 @@ int main()
     }
     //-----------------
 
-    //вершины нашего первого треугольника!
+    //вершины нашего первого треугольника.
+    //TODO: удалить это и определние VBO ниже и написать функцию для организации этого всего
     float vertices1[] = {
         0.1f,  0.1f, 0.0f,
         0.3f,  0.3f, 0.0f,
@@ -60,13 +63,64 @@ int main()
     };
 
     //набор вершин для тестирования
+    //CUBE
     float vertices2[] = {
-    // positions          // colors           // texture coords
-     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // top right
-     0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // bottom right
-    -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // bottom left
-    -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f    // top left 
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
 };
+
+    //расположение кучки кубов в world view
+    glm::vec3 cubePositions[] = {
+    glm::vec3( 0.0f,  0.0f,  0.0f), 
+    glm::vec3( 2.0f,  5.0f, -15.0f), 
+    glm::vec3(-1.5f, -2.2f, -2.5f),  
+    glm::vec3(-3.8f, -2.0f, -12.3f),  
+    glm::vec3( 2.4f, -0.4f, -3.5f),  
+    glm::vec3(-1.7f,  3.0f, -7.5f),  
+    glm::vec3( 1.3f, -2.0f, -2.5f),  
+    glm::vec3( 1.5f,  2.0f, -2.5f), 
+    glm::vec3( 1.5f,  0.2f, -1.5f), 
+    glm::vec3(-1.3f,  1.0f, -1.5f) 
+    };
 
     /*Вершины прямоугольника, используем EBO(Element buffer object) - с его помощью
     вместо повторнго объявления врешин указываем индексы */
@@ -97,42 +151,29 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        //загружаем и генерируем текстуру
-        int width, height, nrChannels;
-        //OpenGL ожидает 0 на оси у внизу изображения, сами изображения устанавивают 0.0 вверху оси у. Эта функция переворачивает ось у
-        stbi_set_flip_vertically_on_load(true);
-        unsigned char *data = stbi_load("textures/container.jpg", &width, &height, &nrChannels, 0);
-        if(data)
-        {
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
-        }
-        else
-        {
-            std::cout << "Failed to load texture!" << std::endl;
-        }
-        stbi_image_free(data);
-
+    //загружаем и генерируем текстуру
+    imgload::loadPNG("textures/container.png");
     //вторая текстура
     unsigned int texture2;
+
     glGenTextures(1, &texture2);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, texture2);
-    //настроиваем враппинг и фильтеринг текстуры(точнее типа который щас забиндин)
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //загружаем и генерируем текстуру
+
     imgload::loadPNG("textures/da_dude.png");
     //анбиндим
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, 0);
-    //третья текстурка, используем texture2DLoader функцию
     //--------------------------
 
+    
     //------Creating vertex attributes and storing them in VAO------
     /*Создаем Vertex Array Object(VAO) - он позолит легко и быстро получать доступ к atrributes и VBO.
     Обычно когда в программе есть несколько объектов для отрисовки, сначала создаются
@@ -169,7 +210,7 @@ int main()
     //анбиндим VAO - теперь он будет нужен только в render loop, тогда и забиндим
     glBindVertexArray(0);
 
-    //второй треугольник
+    //второй VAO
     glGenVertexArrays(1, &VAO2);
     glBindVertexArray(VAO2);
     
@@ -178,29 +219,18 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, VBO2);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices2), vertices2, GL_STATIC_DRAW);
 
-    //EBO for a textured rec
-    unsigned int EBO2;
-    glGenBuffers(1, &EBO2);
-    //OpenGL благодаря тэгам бафферов поймет что есть что в VAO
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-
-
     //position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    //color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*) (3*sizeof(float)));
-    glEnableVertexAttribArray(1);
     //texture coords attribute
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);  
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);  
     glBindVertexArray(0);
 
     //-----------------
     //-----Data for a rectangle------
     //сначала все аналогично треугольнику
+    
     unsigned int VAO_rec;
     glGenVertexArrays(1, &VAO_rec);
     glBindVertexArray(VAO_rec);
@@ -210,6 +240,13 @@ int main()
     glBindBuffer(GL_ARRAY_BUFFER, VBO_rec);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_rec), vertices_rec, GL_STATIC_DRAW);
 
+       //EBO for a textured rec
+    unsigned int EBO2;
+    glGenBuffers(1, &EBO2);
+    //OpenGL благодаря тэгам бафферов поймет что есть что в VAO
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
     //EBO, его тоже можно запихать в текущй VAO(новый, VAO_rec). Анбиндить его во время настройки VAO нельзя, все слетит.
     unsigned int EBO_rec;
     glGenBuffers(1, &EBO_rec);
@@ -224,17 +261,37 @@ int main()
     //анбиндим VAO
     glBindVertexArray(0);
     //------------------
-    //устанавливаем размер и положение Viewport-a OpenGL в окне
-    glViewport(0,0, 800, 600);
-    
 
+    //включаем depth buffer и соотвественно depth testing
+    glEnable(GL_DEPTH_TEST);  
     //регистрация callback function, вызывающаяся когда изменяют размер окна. Эти функции могут вызываться при очень разных обстоятельствах
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    //glm, создаем матрицы для перехода в 3д
+    //переход в world space. Устанавливаем при рендере
+    glm::mat4 model = glm::mat4(1.0f);
+    
+    //переход в view space(camera)
+    glm::mat4 view = glm::mat4(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+    //переход в clip space(projection, frustum box). В нашем случае perspective
+    glm::mat4 projection;
+    projection = glm::perspective(glm::radians(45.0f), 800.0f/600.0f, 0.1f, 100.0f);
     //setting texture unforms
     ourShader.use();
     glUniform1i(glGetUniformLocation(ourShader.ID, "texture1"), 0);
     ourShader.setInt("texture2", 1);
+    //получаем локэйшон наших матриц
+    unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
+    unsigned int viewLoc = glGetUniformLocation(ourShader.ID, "view");
+    unsigned int projectionLoc = glGetUniformLocation(ourShader.ID, "projection");
+
+    //Выбираем способ отрисовки примитивов. Первый прм - приминяем к передней и задней части примитива. Второй - тип отрисовки(п. - GL_LINE/GL_FILL)
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+    //устанавливаем размер и положение Viewport-a OpenGL в окне
+    glViewport(0,0, 800, 600);
+    
     //------render loop-------
     while(!glfwWindowShouldClose(window))
     {
@@ -244,27 +301,36 @@ int main()
         //render commands go here!
         //выбор цвета для очистки экрана (state-setting func)
         glClearColor(0.4f, 0.3f, 0.3f, 1.0f);
-        //установка бита колор буфера, очистка экрана заданным цветом(state-using func)
-        glClear(GL_COLOR_BUFFER_BIT);
+        //установка бита колор буфера, очистка экрана заданным цветом(state-using func) и депф буфра
+        glClear(GL_COLOR_BUFFER_BIT  | GL_DEPTH_BUFFER_BIT);
 
-
-        //Выбираем способ отрисовки примитивов. Первый прм - приминяем к передней и задней части примитива. Второй - тип отрисовки(п. - GL_LINE/GL_FILL)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-
-
-
-        //обновляем юниформы
-        float offset = 0.0;
-        ourShader.setFloat("offset", offset);
-        //теперь рендерим треугольник
+        //биндим текстуры на соотвуствующие текстур юниты
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture1);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, texture2);
+        //биндим VAO
         glBindVertexArray(VAO2);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
+        //обновляем юниформы-матрицы
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        float offset = 0.0;
+        ourShader.setFloat("offset", offset);
+        //обновляем model matrix что бы кубы раскидались по world view
+        for(unsigned int i = 0; i< 10; i++)
+        {
+            model = glm::mat4(1.0f);
+            model =  glm::translate(model, cubePositions[i]);
+            float angle;
+            if (i%3 == 0)
+                angle = (float)glfwGetTime()*10.0f;
+            else
+                angle = 50.0f;
+            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 3.0f, 0.5f));
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+            //теперь рендерим
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
         //Прямоугольник с EBO
         //glBindVertexArray(VAO_rec);

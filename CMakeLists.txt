@@ -18,8 +18,7 @@ set(SHADERS
     fragment.glsl)
 
 set(TEXTURES
-    container.jpg
-    da_dude.jpg
+    container.png
     da_dude.png)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)            
