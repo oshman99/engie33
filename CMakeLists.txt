@@ -9,6 +9,8 @@ set(LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libraries")
 set(SOURCES "${SRC_DIR}/main.cpp" 
             "${SRC_DIR}/shaderClass.cpp" 
             "${SRC_DIR}/shaderClass.h"
+            "${SRC_DIR}/cameraClass.h"
+            "${SRC_DIR}/cameraClass.cpp"
             "${SRC_DIR}/texture2DLoader.cpp"
             "${SRC_DIR}/texture2DLoader.h"
             "${SRC_DIR}/stb_image/stb_image.h")
@@ -32,14 +34,14 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules/")
 
 # GLFW
-find_package(glfw3 3.2 REQUIRED)
+find_package(GLFW3 3.2 REQUIRED)
 message(STATUS "Found GLFW3 in ${GLFW3_INCLUDE_DIR}")
 
 #OpenGL
 find_package(OpenGL REQUIRED)
 
 # GLM
-find_package(glm REQUIRED)
+find_package(GLM REQUIRED)
 message(STATUS "GLM included at ${GLM_INCLUDE_DIR}")
 
 # glad
@@ -48,9 +50,13 @@ add_library("glad" "${GLAD_DIR}/src/glad.c")
 target_include_directories("glad" PRIVATE "${GLAD_DIR}/include")
 target_include_directories(${PROJECT_NAME} PRIVATE "${GLAD_DIR}/include")
 
-
-target_link_libraries(${PROJECT_NAME} PUBLIC "glm" "glfw" "glad" "OpenGL::GL" "${CMAKE_DL_LIBS}")
-
+#to build on windows use mingw64 makefiles(MSYS2 + mingw works 100%)
+#mingw64 names glfw library slightly different
+IF(MINGW)
+    target_link_libraries(${PROJECT_NAME} PUBLIC "GLFW3" "glad" "OpenGL::GL" "${CMAKE_DL_LIBS}")
+ELSE(MINGW)
+    target_link_libraries(${PROJECT_NAME} PUBLIC "glfw" "glad" "OpenGL::GL" "${CMAKE_DL_LIBS}")
+ENDIF(MINGW)
 
 #Shader and texture handeling
 

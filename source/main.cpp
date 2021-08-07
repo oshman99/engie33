@@ -11,6 +11,7 @@
 #include <iostream>
 #include <shaderClass.h>
 #include <texture2DLoader.h>
+#include <cameraClass.h>
 
 //сетап камеры
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
@@ -122,16 +123,9 @@ int main()
     }
     //-----------------
 
-    //вершины нашего первого треугольника.
-    //TODO: удалить это и определние VBO ниже и написать функцию для организации этого всего
-    float vertices1[] = {
-        0.1f,  0.1f, 0.0f,
-        0.3f,  0.3f, 0.0f,
-        0.1f,  0.3f, 0.0f
-    };
-
     //набор вершин для тестирования
-    //CUBE
+    // TODO: написать функцию для организации этого всего, добавить использование EBO
+    //сейчас это вершины куба
     float vertices2[] = {
     -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
      0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
@@ -190,20 +184,6 @@ int main()
     glm::vec3(-1.3f,  1.0f, -1.5f) 
     };
 
-    /*Вершины прямоугольника, используем EBO(Element buffer object) - с его помощью
-    вместо повторнго объявления врешин указываем индексы */
-    float vertices_rec[] = {
-         0.5f,  0.5f, 0.0f,  // top right
-         0.5f, -0.5f, 0.0f,  // bottom right
-        -0.5f, -0.5f, 0.0f,  // bottom left
-        -0.5f,  0.5f, 0.0f   // top left 
-    };
-    //массив номеров вершин, начинаем с 0!
-    unsigned int indices[] = {
-         0, 1, 3,   // first triangle
-         1, 2, 3    // second triangle
-    };
-
     //класс для создание shader program из vertex и fragment шейдера, путь относительно билд папки
     //TODO: Сделать более удобный доступ к шейдеру, может создать строку с путем в папку, что бы указывать только имя
     Shader ourShader("shaders/vertex.glsl", "shaders/fragment.glsl");
@@ -221,6 +201,7 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     //загружаем и генерируем текстуру
     imgload::loadPNG("textures/container.png");
+
     //вторая текстура
     unsigned int texture2;
     glGenTextures(1, &texture2);
@@ -231,6 +212,7 @@ int main()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     imgload::loadPNG("textures/da_dude.png");
+
     //анбиндим текстуры
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -239,95 +221,30 @@ int main()
     //--------------------------
 
     //------Creating vertex attributes and storing them in VAO------
-    /*Создаем Vertex Array Object(VAO) - он позолит легко и быстро получать доступ к atrributes и VBO.
-    Обычно когда в программе есть несколько объектов для отрисовки, сначала создаются
-    и настраиваются все VAO(и соотвественно все VBO и attribute pointers), и сохраняются
-    для использования далее. Когда нужно нарисовать один из объектов, нужный VAO биндится,
-    отрисоывается объект и VAO анбиндится*/
-    unsigned int VAO, VAO2;
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-    //создаем Vertex Buffer Object для вершин.
-    //Сначала как буфер с таким-то ID
-    unsigned int VBO, VBO2;
-    glGenBuffers(1, &VBO);
+    //создаем ID Vertex Array Object
+    unsigned int VAO2;
+    //создаем ID Vertex Buffer Object для вершин.
+    unsigned int VBO2;
 
-    /*Затем биндим буфер к VBO-типу буфера GL_ARRAY_BUFFER
-    OpenGL позволяет биндить множество буферов, 
-    но только если они будут разного типа*/
-    //обычное правило - буферы НЕ меняющихся данных, юниформы для меняющихся данных
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    /*!!!С этого момента любой вызов буфера типа GL_ARRAY_TARGET 
-    будет изменять буфер, в данный момент забиндиный на этот тип !!!*/
-
-    //Копируем вершины треугольника в буфер
-    /*4-ый параметр - то как ГПУ будет управляется с этими данными, куда их запихнет в памяти GPU.
-    Память различается по скрости и типу доступа, так что стоит быть аккуратным.
-    Параметр обычно зависит от частоты изменения и использования этих данных. Смотри docs.gl*/
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices1), vertices1, GL_STATIC_DRAW);
-
-    //Vertex atrribute берут данные из VBO, который сейчас привязан к GL_ARRAY_BUFFER
-    //первый параметр - как раз location = 0 в vertex shader! Второй - размер параметра(типа vec3)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,3 * sizeof(float), (void*)0);
-    /*тк сейчас привязан VAO и был передан 0 в первом параметре(и указан в шейдере)
-    glVertexAttribPointer, vertex atrribute 0 теперь ассоциируются с position vertex attribute этого VAO.
-    Может быть много VertexAttributePointer и можно переключаться между ними*/
-    glEnableVertexAttribArray(0);
-    //анбиндим VAO - теперь он будет нужен только в render loop, тогда и забиндим
-    glBindVertexArray(0);
-
-    //второй VAO, 
+    //генерируем VAO и VBO, у них будет ID выше
     glGenVertexArrays(1, &VAO2);
     glBindVertexArray(VAO2);
     
     glGenBuffers(1, &VBO2);
-
+    //связываем VAO и VBO
     glBindBuffer(GL_ARRAY_BUFFER, VBO2);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices2), vertices2, GL_STATIC_DRAW);
 
-    //position attribute
+    //отправляем position attribute 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    //texture coords attribute
+    //отправялем texture coords attribute
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);  
     glBindVertexArray(0);
 
     //-----------------
-    //-----Data for a rectangle------
-    //сначала все аналогично треугольнику
     
-    unsigned int VAO_rec;
-    glGenVertexArrays(1, &VAO_rec);
-    glBindVertexArray(VAO_rec);
-
-    unsigned int VBO_rec;
-    glGenBuffers(1,&VBO_rec);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO_rec);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_rec), vertices_rec, GL_STATIC_DRAW);
-
-       //EBO for a textured rec
-    unsigned int EBO2;
-    glGenBuffers(1, &EBO2);
-    //OpenGL благодаря тэгам бафферов поймет что есть что в VAO
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    //EBO, его тоже можно запихать в текущй VAO(новый, VAO_rec). Анбиндить его во время настройки VAO нельзя, все слетит.
-    unsigned int EBO_rec;
-    glGenBuffers(1, &EBO_rec);
-    //OpenGL благодаря тэгам бафферов поймет что есть что в VAO
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_rec);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-
-    //ну и аналогичный процесс копирования вершин в буфер
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    //анбиндим VAO
-    glBindVertexArray(0);
-    //------------------
-
     //включаем depth buffer и соотвественно depth testing
     glEnable(GL_DEPTH_TEST);  
     //регистрация callback function, вызывающаяся когда изменяют размер окна. Эти функции могут вызываться при очень разных обстоятельствах
@@ -409,10 +326,6 @@ int main()
         //обновляем юниформы-матрицы
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-        //Прямоугольник с EBO
-        //glBindVertexArray(VAO_rec);
-        //DrawElements берет индексы из текущего забинденого EBO. Собственно поэтому для облегчения их надо привязывать к VAO(как и все остальное! Core обязывает использовать VAO)
-        //glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         //анбиндим VAO
         glBindVertexArray(0);
         //свапает бэк и фронт баферы по сути
