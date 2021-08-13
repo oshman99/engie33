@@ -2,9 +2,13 @@ Small OpenGL engine. Depends on GLFW, GLAD, GLM and stb_image. Developed primarl
 First, make an empty build folder
 
 To build on linux:
+
 cmake ..
+
 cmake --build .
 
 On Windows + MSYS2 + MinGW:
+
 cmake -G "MinGW Makefiles" ..
+
 cmake --build  .
