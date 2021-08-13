@@ -1,6 +1,7 @@
 #include <cameraClass.h>
 
-Camera::Camera(glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH): Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
+//default: glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f), float yaw = YAW, float pitch = PITCH
+Camera::Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch): Front(glm::vec3(0.0f, 0.0f, -1.0f)), MovementSpeed(SPEED), MouseSensitivity(SENSITIVITY), Zoom(ZOOM)
 {
     Position = position;
     WorldUp  = up;
@@ -20,7 +21,27 @@ Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float u
 
 glm::mat4 Camera::GetVewMatrix()
 {
-    return glm::lookAt(Position, Position + Front, Up);
+    //return glm::lookAt(Position, Position + Front, Up);
+    //custom lookAt implementation
+    glm::vec3 target = Position + Front;
+    glm::vec3 direction = glm::normalize(target - Position);
+    glm::vec3 rightAxis = glm::normalize(glm::cross(Up, direction));
+    glm::vec3 upAxis = glm::normalize(glm::cross(direction, rightAxis));
+    glm::mat4 rotation = glm::mat4(1.0f);
+    glm::mat4 translation = glm::mat4(1.0f);
+    rotation [0][0] = rightAxis.x;
+    rotation [1][0] = rightAxis.y;
+    rotation [2][0] = rightAxis.z;
+    rotation [0][1] = upAxis.x;
+    rotation [1][1] = upAxis.y;
+    rotation [2][1] = upAxis.z;
+    rotation [0][2] = direction.x;
+    rotation [1][2] = direction.y;
+    rotation [2][2] = direction.z;
+    translation [3][0] = -Position.x;
+    translation [3][1] = -Position.y;
+    translation [3][2] = -Position.z;
+    return rotation * translation;
 }
 
 void Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime)
@@ -43,7 +64,7 @@ void Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime)
     }
 }
 
-void Camera::ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true)
+void Camera::ProcessMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch)
 {
     xoffset *= MouseSensitivity;
     yoffset *= MouseSensitivity;

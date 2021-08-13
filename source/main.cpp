@@ -1,9 +1,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-//тест подключение библиотеки с смэйком
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+//debbuging
+#include <glm/gtx/string_cast.hpp>
 
 //библиотека для загрузк текстур, инклюдится в texture2DLoader
 //#include <stb_image/stb_image.h>
@@ -13,90 +14,28 @@
 #include <texture2DLoader.h>
 #include <cameraClass.h>
 
+void processInput(GLFWwindow *window);
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+//настройки
+const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_HEIGHT = 600;
 //сетап камеры
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
 //то, куда смотрит камера, аналогично yaw = 90.0f;
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-
 //перемнные для настройки плавности движения
 float deltaTime = 0.0f;//время между текущим и прошлым кадром
 float lastFrame = 0.0f;//время прошлого кадра
-
-//process key presses 
-void processInput(GLFWwindow *window)
-{
-    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-    const float cameraSpeed = 2.5f * deltaTime;//adjust
-    //move forward/backwards
-    if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        cameraPos += cameraSpeed * cameraFront;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
-    //strafe
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-}
-
-//window resize callback
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-    glViewport(0, 0, width, height);
-}
-
 //init mouse position variables(center of the screen)
-float lastX = 400, lastY = 300, yaw = -90.0f, pitch = 0.0f;
+float lastX = SCR_WIDTH/2; 
+float lastY = SCR_HEIGHT/2;
 //flag to check if this is the first time we recive mouse input
 bool firstMouse = true;
 
-//mouse movement callback
-void mouse_callback(GLFWwindow* window, double xpos, double ypos)
-{
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
-    lastX = xpos;
-    lastY = ypos;
-
-    float sensitivity = 0.1f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    if (pitch > 89.0f)
-        pitch = 89.0f;
-    if (pitch < -89.0f)
-        pitch = -89.0f;
-    
-    glm::vec3 direction;
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(direction);
-}
-
-float fov = 45.0f;
-
-//scrolling callback(zoom)
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    fov -= (float)yoffset;
-    if(fov < 1.0f)
-        fov = 1.0f;
-    if (fov > 45.0f)
-        fov = 45.0f;
-}
+Camera camera(glm::vec3(0.0f, 0.0, 3.0f));
 
 int main()
 {
@@ -106,7 +45,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Learn OpenGL!", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Learn OpenGL!", NULL, NULL);
     if (window == NULL)
     {
         std::cout <<"Failed to create GLFW window!" << std::endl;
@@ -184,6 +123,13 @@ int main()
     glm::vec3(-1.3f,  1.0f, -1.5f) 
     };
 
+/*     //debbuging
+    glm::vec3 Position = glm::vec3(1.0f, 2.0f, 3.0f);
+    glm::mat4 trans(1.0f);
+    trans = glm::translate(trans, -Position);
+    //glm::translate(trans, -Position);
+    std::cout <<  glm::to_string(trans) << std::endl; */
+
     //класс для создание shader program из vertex и fragment шейдера, путь относительно билд папки
     //TODO: Сделать более удобный доступ к шейдеру, может создать строку с путем в папку, что бы указывать только имя
     Shader ourShader("shaders/vertex.glsl", "shaders/fragment.glsl");
@@ -253,16 +199,16 @@ int main()
     glfwSetCursorPosCallback(window, mouse_callback);
     //тоже, но scrolling
     glfwSetScrollCallback(window, scroll_callback);
+
     //переход в view space(camera)
-    //функция умножающая на матрицу, которая "сдвигает" окружение как будто камера смторит на объект(1 - позиция камеры, 2 - на что смотреть, 3 - вектор направленный вверх)
+    //матрицa, которая "сдвигает" окружение как будто камера смторит на объект
     glm::mat4 view;
     //glm, создаем матрицы для перехода в 3д
     //переход в world space. Устанавливаем при рендере
     glm::mat4 model = glm::mat4(1.0f);
-    
     //переход в clip space(projection, frustum box). В нашем случае perspective
     glm::mat4 projection;
-    projection = glm::perspective(glm::radians(fov), 800.0f/600.0f, 0.1f, 100.0f);
+
     //setting texture unforms
     ourShader.use();
     glUniform1i(glGetUniformLocation(ourShader.ID, "texture1"), 0);
@@ -276,7 +222,7 @@ int main()
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     //устанавливаем размер и положение Viewport-a OpenGL в окне
-    glViewport(0,0, 800, 600);
+    glViewport(0,0, SCR_WIDTH, SCR_HEIGHT);
     
     //------render loop-------
     while(!glfwWindowShouldClose(window))
@@ -304,9 +250,10 @@ int main()
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
         //оюновляем view matrix, камера двигается!
-        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        //(1 - позиция камеры, 2 - на что смотреть, 3 - вектор направленный вверх)
+        view = camera.GetVewMatrix();
         //обновляем projection matrix, fov furstum box-a меняется
-        projection = glm::perspective(glm::radians(fov), 800.0f/600.0f, 0.1f, 100.0f);
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH/(float)SCR_HEIGHT, 0.1f, 100.0f);
 
         //обновляем model matrix что бы кубы раскидались по world view
         for(unsigned int i = 0; i< 10; i++)
@@ -338,4 +285,52 @@ int main()
     //удалить окно и все что с ним связано
     glfwTerminate();
     return 0;
+}
+
+//process key presses 
+void processInput(GLFWwindow *window)
+{
+    if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+    const float cameraSpeed = 2.5f * deltaTime;//adjust
+    //move forward/backwards
+    if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.ProcessKeyboard(FORWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.ProcessKeyboard(BACKWARD, deltaTime);
+    //strafe
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.ProcessKeyboard(LEFT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.ProcessKeyboard(RIGHT, deltaTime);
+}
+
+//window resize callback
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
+//mouse movement callback
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
+    lastX = xpos;
+    lastY = ypos;
+
+    camera.ProcessMouseMovement(xoffset, yoffset);
+}
+
+//scrolling callback(zoom)
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    camera.ProcessMouseScroll(yoffset);
 }
