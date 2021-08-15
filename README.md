@@ -2,6 +2,7 @@ Small OpenGL engine. Depends on GLFW, GLAD, GLM and stb_image. Developed primarl
 First, make an empty build folder
 
 ## To build on linux:
+gcc is standart in CMake on unix platforms
 
 cmake ..
 
