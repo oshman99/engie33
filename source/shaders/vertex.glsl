@@ -4,8 +4,8 @@ layout (location = 1) in vec2 aTexCoord;
 
 uniform float offset;
 
-out vec3 ourColor; // output a color to the fragment shader
-out vec2 TexCoord;
+//out vec3 ourColor; // output a color to the fragment shader
+//out vec2 TexCoord;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -15,5 +15,5 @@ void main()
 {
     
     gl_Position = projection * view * model * vec4(aPos, 1.0);
-    TexCoord = aTexCoord;
+    //TexCoord = aTexCoord;
 }       

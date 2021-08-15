@@ -17,7 +17,10 @@ set(SOURCES "${SRC_DIR}/main.cpp"
 
 set(SHADERS 
     vertex.glsl
-    fragment.glsl)
+    fragment.glsl
+    vertexLightObject.glsl
+    fragmentLightObject.glsl
+    fragmentLightSource.glsl)
 
 set(TEXTURES
     container.png

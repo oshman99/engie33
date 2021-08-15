@@ -21,9 +21,9 @@ Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float u
 
 glm::mat4 Camera::GetVewMatrix()
 {
-    //return glm::lookAt(Position, Position + Front, Up);
+    return glm::lookAt(Position, Position + Front, Up);
     //custom lookAt implementation
-    glm::vec3 target = Position + Front;
+/*     glm::vec3 target = Position + Front;
     glm::vec3 direction = glm::normalize(target - Position);
     glm::vec3 rightAxis = glm::normalize(glm::cross(Up, direction));
     glm::vec3 upAxis = glm::normalize(glm::cross(direction, rightAxis));
@@ -41,7 +41,7 @@ glm::mat4 Camera::GetVewMatrix()
     translation [3][0] = -Position.x;
     translation [3][1] = -Position.y;
     translation [3][2] = -Position.z;
-    return rotation * translation;
+    return rotation * translation; */
 }
 
 void Camera::ProcessKeyboard(Camera_Movement direction, float deltaTime)

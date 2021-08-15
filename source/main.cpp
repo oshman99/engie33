@@ -14,10 +14,12 @@
 #include <texture2DLoader.h>
 #include <cameraClass.h>
 
+//callbacks
 void processInput(GLFWwindow *window);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+
 //настройки
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -36,6 +38,10 @@ float lastY = SCR_HEIGHT/2;
 bool firstMouse = true;
 
 Camera camera(glm::vec3(0.0f, 0.0, 3.0f));
+
+//position of objects in worldview
+glm::vec3 lightPos(1.2f, 1.0f, -2.0f);
+glm::vec3 objectPos(0.0f);
 
 int main()
 {
@@ -66,6 +72,7 @@ int main()
     // TODO: написать функцию для организации этого всего, добавить использование EBO
     //сейчас это вершины куба
     float vertices2[] = {
+    /*position coords     tex coords*/
     -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
      0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
      0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
@@ -109,30 +116,12 @@ int main()
     -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
 };
 
-    //расположение кучки кубов в world view
-    glm::vec3 cubePositions[] = {
-    glm::vec3( 0.0f,  0.0f,  0.0f), 
-    glm::vec3( 2.0f,  5.0f, -15.0f), 
-    glm::vec3(-1.5f, -2.2f, -2.5f),  
-    glm::vec3(-3.8f, -2.0f, -12.3f),  
-    glm::vec3( 2.4f, -0.4f, -3.5f),  
-    glm::vec3(-1.7f,  3.0f, -7.5f),  
-    glm::vec3( 1.3f, -2.0f, -2.5f),  
-    glm::vec3( 1.5f,  2.0f, -2.5f), 
-    glm::vec3( 1.5f,  0.2f, -1.5f), 
-    glm::vec3(-1.3f,  1.0f, -1.5f) 
-    };
-
-/*     //debbuging
-    glm::vec3 Position = glm::vec3(1.0f, 2.0f, 3.0f);
-    glm::mat4 trans(1.0f);
-    trans = glm::translate(trans, -Position);
-    //glm::translate(trans, -Position);
-    std::cout <<  glm::to_string(trans) << std::endl; */
 
     //класс для создание shader program из vertex и fragment шейдера, путь относительно билд папки
     //TODO: Сделать более удобный доступ к шейдеру, может создать строку с путем в папку, что бы указывать только имя
-    Shader ourShader("shaders/vertex.glsl", "shaders/fragment.glsl");
+    //Shader ourShader("shaders/vertex.glsl", "shaders/fragment.glsl");
+    Shader lightObjectShader("shaders/vertexLightObject.glsl", "shaders/fragmentLightObject.glsl");
+    Shader lightSourceShader("shaders/vertexLightObject.glsl", "shaders/fragmentLightSource.glsl");
     //------------------------
 
     //--------Genereating textures--------
@@ -140,12 +129,11 @@ int main()
     glGenTextures(1, &texture1);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture1);
-    //настроиваем враппинг и фильтеринг текстуры(точнее типа который щас забиндин)
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //загружаем и генерируем текстуру
     imgload::loadPNG("textures/container.png");
 
     //вторая текстура
@@ -168,17 +156,15 @@ int main()
 
     //------Creating vertex attributes and storing them in VAO------
     //создаем ID Vertex Array Object
-    unsigned int VAO2;
+    unsigned int VAO, lightVAO;
     //создаем ID Vertex Buffer Object для вершин.
-    unsigned int VBO2;
+    unsigned int VBO;
 
-    //генерируем VAO и VBO, у них будет ID выше
-    glGenVertexArrays(1, &VAO2);
-    glBindVertexArray(VAO2);
-    
-    glGenBuffers(1, &VBO2);
-    //связываем VAO и VBO
-    glBindBuffer(GL_ARRAY_BUFFER, VBO2);
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices2), vertices2, GL_STATIC_DRAW);
 
     //отправляем position attribute 
@@ -187,17 +173,29 @@ int main()
     //отправялем texture coords attribute
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);  
+
+    glGenVertexArrays(1, &lightVAO);
+    glBindVertexArray(lightVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    //glBufferData - уже вызывали, все настроено
+    //отправляем position attribute 
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    //отправялем texture coords attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);  
+
     glBindVertexArray(0);
 
     //-----------------
     
     //включаем depth buffer и соотвественно depth testing
     glEnable(GL_DEPTH_TEST);  
-    //регистрация callback function, вызывающаяся когда изменяют размер окна. Эти функции могут вызываться при очень разных обстоятельствах
+
+    //регистрация callback functions
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    //тоже, но движение мыши
     glfwSetCursorPosCallback(window, mouse_callback);
-    //тоже, но scrolling
     glfwSetScrollCallback(window, scroll_callback);
 
     //переход в view space(camera)
@@ -209,14 +207,28 @@ int main()
     //переход в clip space(projection, frustum box). В нашем случае perspective
     glm::mat4 projection;
 
-    //setting texture unforms
+/*     //setting uniforms
     ourShader.use();
     glUniform1i(glGetUniformLocation(ourShader.ID, "texture1"), 0);
     ourShader.setInt("texture2", 1);
-    //получаем локэйшон наших матриц
+
     unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
     unsigned int viewLoc = glGetUniformLocation(ourShader.ID, "view");
     unsigned int projectionLoc = glGetUniformLocation(ourShader.ID, "projection");
+ */
+
+    lightObjectShader.use();
+    lightObjectShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+    lightObjectShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+    unsigned int modelLoc = glGetUniformLocation(lightObjectShader.ID, "model");
+    unsigned int viewLoc = glGetUniformLocation(lightObjectShader.ID, "view");
+    unsigned int projectionLoc = glGetUniformLocation(lightObjectShader.ID, "projection");
+
+    lightSourceShader.use();
+    unsigned int modelLocLight = glGetUniformLocation(lightSourceShader.ID, "model");
+    unsigned int viewLocLight = glGetUniformLocation(lightSourceShader.ID, "view");
+    unsigned int projectionLocLight = glGetUniformLocation(lightSourceShader.ID, "projection");
+
 
     //Выбираем способ отрисовки примитивов. Первый прм - приминяем к передней и задней части примитива. Второй - тип отрисовки(п. - GL_LINE/GL_FILL)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -235,54 +247,53 @@ int main()
         glClearColor(0.4f, 0.3f, 0.3f, 1.0f);
         //установка бита колор буфера, очистка экрана заданным цветом(state-using func) и депф буфра
         glClear(GL_COLOR_BUFFER_BIT  | GL_DEPTH_BUFFER_BIT);
-
-        //биндим текстуры на соотвуствующие текстур юниты
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture1);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture2);
-        //биндим VAO
-        glBindVertexArray(VAO2);
-        float offset = 0.0;
-        ourShader.setFloat("offset", offset);
+        
         //обновляем переменные с временем кадров
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+
+/*         //биндим текстуры на соотвуствующие текстур юниты
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, texture2); */
+        lightObjectShader.use();
+
         //оюновляем view matrix, камера двигается!
-        //(1 - позиция камеры, 2 - на что смотреть, 3 - вектор направленный вверх)
-        view = camera.GetVewMatrix();
+        view = camera.GetVewMatrix();  
         //обновляем projection matrix, fov furstum box-a меняется
         projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH/(float)SCR_HEIGHT, 0.1f, 100.0f);
-
-        //обновляем model matrix что бы кубы раскидались по world view
-        for(unsigned int i = 0; i< 10; i++)
-        {
-            model = glm::mat4(1.0f);
-            model =  glm::translate(model, cubePositions[i]);
-            float angle;
-            if (i%3 == 0)
-                angle = (float)glfwGetTime()*10.0f;
-            else
-                angle = 50.0f;
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 3.0f, 0.5f));
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-            //теперь рендерим
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
         //обновляем юниформы-матрицы
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-        //анбиндим VAO
+
+        model = glm::mat4(1.0f);
+        model =  glm::translate(model, objectPos);
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+        glBindVertexArray(VAO);
+        //теперь рендерим
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        lightSourceShader.use();
+        glUniformMatrix4fv(viewLocLight, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projectionLocLight, 1, GL_FALSE, glm::value_ptr(projection));
+        model = glm::mat4(1.0f);
+        model =  glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f)); 
+        glUniformMatrix4fv(modelLocLight, 1, GL_FALSE, glm::value_ptr(model));
+        glBindVertexArray(lightVAO);
+        //теперь рендерим свет
+        glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
-        //свапает бэк и фронт баферы по сути
         glfwSwapBuffers(window);
         //проверяет сработало ли какое то событие, вызывает callback funtions из стека вроде(?) и обновляет состояние окна
         glfwPollEvents();
     }
     //---------------
 
-    //удалить окно и все что с ним связано
     glfwTerminate();
     return 0;
 }
@@ -292,7 +303,7 @@ void processInput(GLFWwindow *window)
 {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    const float cameraSpeed = 2.5f * deltaTime;//adjust
+    const float cameraSpeed = 2.5f * deltaTime;
     //move forward/backwards
     if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.ProcessKeyboard(FORWARD, deltaTime);
