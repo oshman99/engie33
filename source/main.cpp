@@ -1,10 +1,20 @@
+//explicitly define GLAD loader to imgui
+//#define IMGUI_IMPL_OPENGL_LOADER_GLAD
+
+//imgui - fisrt
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+//glad - second
 #include <glad/glad.h>
+//GLFW - third
 #include <GLFW/glfw3.h>
+//everything else - meh
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 //debbuging
-#include <glm/gtx/string_cast.hpp>
+//#include <glm/gtx/string_cast.hpp>
 
 //библиотека для загрузк текстур, инклюдится в texture2DLoader
 //#include <stb_image/stb_image.h>
@@ -41,10 +51,13 @@ Camera camera(glm::vec3(0.0f, 0.0, 3.0f));
 
 //position of objects in worldview
 glm::vec3 lightPos(2.0f, 2.0f, -4.0f);
-glm::vec3 objectPos(-0.3f);
+glm::vec3 objectPos(0.0f);
+glm::vec3 lightColor(1.0f);
 
 int main()
 {
+    //some ImGui dependencies crap, no need apperently
+    //gladLoadGL();
     //------init GLFW, set everything and create window and context-------
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -207,19 +220,18 @@ int main()
     //переход в clip space(projection, frustum box). В нашем случае perspective
     glm::mat4 projection;
 
-/*     //setting uniforms
-    ourShader.use();
-    glUniform1i(glGetUniformLocation(ourShader.ID, "texture1"), 0);
-    ourShader.setInt("texture2", 1);
-
-    unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
-    unsigned int viewLoc = glGetUniformLocation(ourShader.ID, "view");
-    unsigned int projectionLoc = glGetUniformLocation(ourShader.ID, "projection");
- */
 
     lightObjectShader.use();
-    lightObjectShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-    lightObjectShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+    //material struct
+    lightObjectShader.setVec3("material.ambient", 1.0f, 0.5f, 0.31f);
+    lightObjectShader.setVec3("material.diffuse", 1.0f, 0.5f, 0.31f);
+    lightObjectShader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
+    lightObjectShader.setFloat("material.shininess",32.0f);
+    //light struct  
+    lightObjectShader.setVec3("light.ambient", 0.1f, 0.1f, 0.1f);
+    lightObjectShader.setVec3("light.diffuse", 0.5f, 0.5f, 0.5f);
+    lightObjectShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+
     unsigned int modelLoc = glGetUniformLocation(lightObjectShader.ID, "model");
     unsigned int viewLoc = glGetUniformLocation(lightObjectShader.ID, "view");
     unsigned int projectionLoc = glGetUniformLocation(lightObjectShader.ID, "projection");
@@ -235,6 +247,13 @@ int main()
     //устанавливаем размер и положение Viewport-a OpenGL в окне
     glViewport(0,0, SCR_WIDTH, SCR_HEIGHT);
     
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
     //------render loop-------
     while(!glfwWindowShouldClose(window))
     {
@@ -243,21 +262,25 @@ int main()
         //render commands go here!
 
         //выбор цвета для очистки экрана (state-setting func)
-        glClearColor(0.4f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         //установка бита колор буфера, очистка экрана заданным цветом(state-using func) и депф буфра
         glClear(GL_COLOR_BUFFER_BIT  | GL_DEPTH_BUFFER_BIT);
-        
+        //sort of telling ImGui that we are working on a new frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
         //обновляем переменные с временем кадров
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
 
-/*         //биндим текстуры на соотвуствующие текстур юниты
+      //биндим текстуры на соотвуствующие текстур юниты
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture1);
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture2); */
+        glBindTexture(GL_TEXTURE_2D, texture2); 
         lightObjectShader.use();
         lightObjectShader.setVec3("viewPos",camera.Position.x, camera.Position.y, camera.Position.z);
         //оюновляем view matrix, камера двигается!
@@ -267,13 +290,19 @@ int main()
         //обновляем юниформы-матрицы
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-        lightPos = glm::vec3(glm::cos((float)glfwGetTime())*2.0f, glm::sin((float)glfwGetTime())*2.0f, 2.0);
         model = glm::mat4(1.0f);
         model =  glm::translate(model, objectPos);
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        lightObjectShader.setVec3("lightPos", lightPos.x, lightPos.y, lightPos.z);
+
+        lightPos = glm::vec3(glm::cos((float)glfwGetTime())*2.0f, 0.1f, glm::sin((float)glfwGetTime())*2.0f);
+        lightObjectShader.setVec3("light.position", lightPos);
+
+        lightObjectShader.setVec3("material.ambient",0.1f, 0.1745f, 0.1f);
+        lightObjectShader.setVec3("material.diffuse",0.4f, 0.61424f, 0.07568);
+        lightObjectShader.setVec3("material.specular", 0.633f, 0.727811f, 0.633f);
+        lightObjectShader.setFloat("material.shininess",0.6f * 128.0f);
+
         glBindVertexArray(VAO);
-        //теперь рендерим
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         lightSourceShader.use();
@@ -284,15 +313,30 @@ int main()
         model = glm::scale(model, glm::vec3(0.2f)); 
         glUniformMatrix4fv(modelLocLight, 1, GL_FALSE, glm::value_ptr(model));
         
+        lightSourceShader.setVec3("lightColor", lightColor); 
         glBindVertexArray(lightVAO);
         //теперь рендерим свет
         glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
+
+        ImGui::Begin("My name is Imgui window amd i'm an ass to implement blyat!");
+        ImGui::Text("Hello there adventurer!");
+        ImGui::End();
+
+        //render the ui
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
         //проверяет сработало ли какое то событие, вызывает callback funtions из стека вроде(?) и обновляет состояние окна
         glfwPollEvents();
     }
     //---------------
+
+    //destroy ImGui context
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwTerminate();
     return 0;

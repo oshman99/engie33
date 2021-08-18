@@ -1,7 +1,7 @@
 #ifndef TEXTURE2D_LOAD_H
 #define TEXTURE2D_LOAD_H
 #include <glad/glad.h>
-#include <stb_image/stb_image.h>
+#include <stb_image.h>
 #include <iostream>
 
 //should really add other types!
