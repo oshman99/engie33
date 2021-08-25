@@ -13,7 +13,9 @@ enum Camera_Movement
     FORWARD,
     BACKWARD,
     RIGHT,
-    LEFT
+    LEFT,
+    UP,
+    DOWN
 };
 
 //default camera movements

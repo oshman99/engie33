@@ -5,7 +5,7 @@ project(engie33)
 # Source files
 # hacky way to add stb_image.h, fix!
 set(SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
-set(LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libraries")
+set(LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libraries_headers")
     
 file(GLOB IMGUI_SOURCES ${IMGUI_PATH}/*.cpp) 
 set(SOURCES "${SRC_DIR}/main.cpp" 
@@ -25,7 +25,10 @@ set(SHADERS
 
 set(TEXTURES
     container.png
-    da_dude.png)
+    da_dude.png
+    container2.png
+    container2_specular.png
+    matrix.png)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders)            
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/textures)      
@@ -47,6 +50,13 @@ find_package(OpenGL REQUIRED)
 # GLM
 find_package(GLM REQUIRED)
 message(STATUS "GLM included at ${GLM_INCLUDE_DIR}")
+
+#assimp 
+find_package(assimp REQUIRED)
+message(STATUS "assimp included at ${ASSIMP_INCLUDE_DIRS}")
+
+
+
 
 # glad
 set(GLAD_DIR "${LIB_DIR}/glad")
@@ -70,9 +80,9 @@ link_directories(${LIB_DIR}/stb_image)
 #to build on windows use mingw64 makefiles(MSYS2 + mingw works 100%)
 #mingw64 names glfw library slightly different i suppose
 IF(MINGW)
-    target_link_libraries(${PROJECT_NAME} PUBLIC "ImGui" "GLFW3" "glad" "OpenGL::GL" "${CMAKE_DL_LIBS}")
+    target_link_libraries(${PROJECT_NAME} PUBLIC "assimp" "ImGui" "GLFW3" "glad" "OpenGL::GL" "${CMAKE_DL_LIBS}")
 ELSE(MINGW)
-    target_link_libraries(${PROJECT_NAME} PUBLIC "ImGui" "glfw" "glad" "OpenGL::GL" "${CMAKE_DL_LIBS}")
+    target_link_libraries(${PROJECT_NAME} PUBLIC "assimp" "ImGui" "glfw" "glad" "OpenGL::GL" "${CMAKE_DL_LIBS}")
 ENDIF(MINGW)
 
 #Shader and texture handeling
