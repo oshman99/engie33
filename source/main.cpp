@@ -1,6 +1,4 @@
-//explicitly define GLAD loader to imgui
-//#define IMGUI_IMPL_OPENGL_LOADER_GLAD
-
+#define STB_IMAGE_IMPLEMENTATION
 //imgui - fisrt
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -9,31 +7,25 @@
 #include <glad/glad.h>
 //GLFW - third
 #include <GLFW/glfw3.h>
-//everything else - whatever
+//everything else - whatever order
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <assimp/Importer.hpp>
-//debbuging
-//#include <glm/gtx/string_cast.hpp>
 
-//библиотека для загрузк текстур, инклюдится в texture2DLoader
-//#include <stb_image/stb_image.h>
+#include <shaderClass.h>
+#include <cameraClass.h>
+#include <modelClass.h>
 
 #include <iostream>
-#include <shaderClass.h>
-#include <texture2DLoader.h>//TODO::remove this abomination, simple function is enough
-#include <cameraClass.h>
 
+unsigned int loadTexture(const char *filename);
 //callbacks
 void processInput(GLFWwindow *window);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
-//assimp test
- Assimp::Importer importer;
- 
 //настройки
 const unsigned int SCR_WIDTH = 1360;
 const unsigned int SCR_HEIGHT = 720;
@@ -101,7 +93,8 @@ int main()
         return -1;
     }
     //-----------------
-
+    //very cool and important texture y-axis flip(before loading)
+    stbi_set_flip_vertically_on_load(true);
     //набор вершин для тестирования
     // TODO: написать функцию для организации этого всего, добавить использование EBO
     //сейчас это вершины куба
@@ -150,55 +143,16 @@ int main()
     -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,   0.0f, 1.0f
 };
 
-
-    //класс для создание shader program из vertex и fragment шейдера, путь относительно билд папки
     //TODO: Сделать более удобный доступ к шейдеру, может создать строку с путем в папку, что бы указывать только имя
-    //Shader ourShader("shaders/vertex.glsl", "shaders/fragment.glsl");
     Shader lightObjectShader("shaders/vertexLightObject.glsl", "shaders/fragmentLightObject.glsl");
     Shader lightSourceShader("shaders/vertexLightObject.glsl", "shaders/fragmentLightSource.glsl");
+    Shader simpleShader("shaders/vertex.glsl", "shaders/fragment.glsl");
     //------------------------
-
+    Model ourModel(std::string("assets/models/survival_backpack/backpack.obj"));
     //--------Genereating textures--------
-    unsigned int diffuseMap;
-    glGenTextures(1, &diffuseMap);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, diffuseMap);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    imgload::loadPNG("textures/container2.png");
-
-    //2 текстура
-    unsigned int specularMap;
-    glGenTextures(1, &specularMap);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, specularMap);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    imgload::loadPNG("textures/container2_specular.png");
-
-    //3 текстура
-    unsigned int emissionMap;
-    glGenTextures(1, &emissionMap);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, emissionMap);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    imgload::loadPNG("textures/matrix.png");
-
-    //анбиндим текстуры
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    unsigned int diffuseMap =  loadTexture("assets/textures/container2.png");
+    unsigned int specularMap = loadTexture("assets/textures/container2_specular.png");
+    unsigned int emissionMap = loadTexture("assets/textures/matrix.png");
     //--------------------------
 
     //------Creating vertex attributes and storing them in VAO------
@@ -265,6 +219,11 @@ int main()
     unsigned int viewLocLight = glGetUniformLocation(lightSourceShader.ID, "view");
     unsigned int projectionLocLight = glGetUniformLocation(lightSourceShader.ID, "projection");
 
+
+    simpleShader.use();
+    unsigned int modelLocModel = glGetUniformLocation(simpleShader.ID, "model");
+    unsigned int viewLocModel = glGetUniformLocation(simpleShader.ID, "view");
+    unsigned int projectionLocModel = glGetUniformLocation(simpleShader.ID, "projection");
     //Выбираем способ отрисовки примитивов. Первый прм - приминяем к передней и задней части примитива. Второй - тип отрисовки(п. - GL_LINE/GL_FILL)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -379,15 +338,12 @@ int main()
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         glBindVertexArray(VAO);
-        for(unsigned int i = 0; i < 10; i++)
-        {
-            model = glm::mat4(1.0f);
-            model =  glm::translate(model, cubePositions[i]);
-            float angle = 20.0f *i;
-            model = glm::rotate(model, glm::radians(angle),glm::vec3(1.0f, 0.3f, 0.5f));
-            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
+        model = glm::mat4(1.0f);
+        model =  glm::translate(model, cubePositions[4]);
+        float angle = 20.0f *4;
+        model = glm::rotate(model, glm::radians(angle),glm::vec3(1.0f, 0.3f, 0.5f));
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
 
         //---рендер лампы-куба----
@@ -405,8 +361,19 @@ int main()
             glBindVertexArray(lightVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
+       
         glBindVertexArray(0);
+        //РЕНДЕР МОДЕЛИ!!
+        simpleShader.use();
+        glUniformMatrix4fv(viewLocModel, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projectionLocModel, 1, GL_FALSE, glm::value_ptr(projection));
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+        glUniformMatrix4fv(modelLocModel, 1, GL_FALSE, glm::value_ptr(model));
+        ourModel.Draw(simpleShader);
 
+        
         //ImGui рендер
         //TODO::Создавать меню по нажатию кнопки и потом обрабатывать инпут. Возможно надо перенести на другой поток
         ImGui::Begin("My name is Imgui window amd i'm an ass to implement blyat!");
@@ -439,6 +406,45 @@ int main()
     return 0;
 }
 
+//сгенерировать и загрузить текстуру
+unsigned int loadTexture(const char *filename)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    //загружаем и генерируем текстуру
+    int width, height, nrChannels;
+    //OpenGL ожидает 0 на оси у внизу изображения, сами изображения устанавивают 0.0 вверху оси у. Эта функция переворачивает ось у
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char *data = stbi_load(filename, &width, &height, &nrChannels, 0);
+    if(data)
+    {
+        GLenum format;
+        if (nrChannels == 1)
+            format = GL_RED;
+        if (nrChannels == 3)
+            format = GL_RGB;
+        if (nrChannels == 4)
+            format = GL_RGBA;
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    else
+    {
+        std::cout << "Failed to load texture!" << std::endl;
+    }
+    stbi_image_free(data);
+
+    return textureID;
+}
+
+
+//callbacks
 //process key presses 
 void processInput(GLFWwindow *window)
 {
