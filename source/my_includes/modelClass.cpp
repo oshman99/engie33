@@ -1,5 +1,5 @@
 
-#include <modelClass.h>
+#include <my_includes/modelClass.h>
 unsigned int TextureFromFile(const char *path, const std::string &directory);
 
 Model::Model(std::string const &path){
@@ -96,7 +96,7 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene){
 
 std::vector<Texture> Model::loadMaterialTexture (aiMaterial *mat, aiTextureType type, std::string typeName){
     std::vector<Texture> textures;
-    for(unsigned int i; i < mat->GetTextureCount(type); i++)
+    for(unsigned int i = 0; i < mat->GetTextureCount(type); i++)
     {
         aiString str;
         mat->GetTexture(type, i, &str);

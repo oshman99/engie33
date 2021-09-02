@@ -8,14 +8,14 @@ set(LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libraries_headers")
     
 file(GLOB IMGUI_SOURCES ${IMGUI_PATH}/*.cpp) 
 set(SOURCES "${SRC_DIR}/main.cpp" 
-            "${SRC_DIR}/shaderClass.cpp" 
-            "${SRC_DIR}/shaderClass.h"
-            "${SRC_DIR}/cameraClass.h"
-            "${SRC_DIR}/cameraClass.cpp"
-            "${SRC_DIR}/meshClass.cpp"
-            "${SRC_DIR}/meshClass.h"
-            "${SRC_DIR}/modelClass.cpp"
-            "${SRC_DIR}/modelClass.h"
+            "${SRC_DIR}/my_includes/shaderClass.cpp" 
+            "${SRC_DIR}/my_includes/shaderClass.h"
+            "${SRC_DIR}/my_includes/cameraClass.h"
+            "${SRC_DIR}/my_includes/cameraClass.cpp"
+            "${SRC_DIR}/my_includes/meshClass.cpp"
+            "${SRC_DIR}/my_includes/meshClass.h"
+            "${SRC_DIR}/my_includes/modelClass.cpp"
+            "${SRC_DIR}/my_includes/modelClass.h"
             )
 
 set(SHADERS 

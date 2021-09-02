@@ -1,4 +1,4 @@
-#include <meshClass.h>
+#include <my_includes/meshClass.h>
 
 Mesh::Mesh (std::vector<Vertex> inVertices, std::vector<unsigned int> inIndices, std::vector<Texture> inTextures):
 vertices{std::move(inVertices)},

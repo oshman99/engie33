@@ -2,7 +2,7 @@
 #define MESH_H
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <shaderClass.h>
+#include <my_includes/shaderClass.h>
 #include <string>
 #include <vector>
 struct Vertex
