@@ -1,19 +1,26 @@
+#define STB_IMAGE_IMPLEMENTATION
+//imgui - fisrt
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+//glad - second
 #include <glad/glad.h>
+//GLFW - third
 #include <GLFW/glfw3.h>
+//everything else - whatever order
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-//debbuging
-#include <glm/gtx/string_cast.hpp>
 
-//библиотека для загрузк текстур, инклюдится в texture2DLoader
-//#include <stb_image/stb_image.h>
+#include <my_includes/shaderClass.h>
+#include <my_includes/cameraClass.h>
+#include <my_includes/modelClass.h>
 
 #include <iostream>
-#include <shaderClass.h>
-#include <texture2DLoader.h>
-#include <cameraClass.h>
 
+unsigned int generateCube(unsigned int VAO);
+unsigned int loadTexture(const char *filename);
 //callbacks
 void processInput(GLFWwindow *window);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -21,30 +28,50 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
 //настройки
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
-//сетап камеры
+const unsigned int SCR_WIDTH = 1360;
+const unsigned int SCR_HEIGHT = 720;
+
+//камера
+Camera camera(glm::vec3(0.0f, 0.0, 3.0f));
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
 //то, куда смотрит камера, аналогично yaw = 90.0f;
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-//перемнные для настройки плавности движения
-float deltaTime = 0.0f;//время между текущим и прошлым кадром
-float lastFrame = 0.0f;//время прошлого кадра
 //init mouse position variables(center of the screen)
 float lastX = SCR_WIDTH/2; 
 float lastY = SCR_HEIGHT/2;
-//flag to check if this is the first time we recive mouse input
 bool firstMouse = true;
 
-Camera camera(glm::vec3(0.0f, 0.0, 3.0f));
+//тайминг кадров
+float deltaTime = 0.0f;//время между текущим и прошлым кадром
+float lastFrame = 0.0f;//время прошлого кадра
 
 //position of objects in worldview
-glm::vec3 lightPos(1.2f, 1.0f, -2.0f);
+glm::vec3 pointLightPositions[] = {
+    glm::vec3( 0.7f,  0.2f,  2.0f),
+    glm::vec3( 2.3f, -3.3f, -4.0f),
+    glm::vec3(-4.0f,  2.0f, -12.0f),
+    glm::vec3(-4.0f,  2.0f, -12.0f)
+};
+glm::vec3 cubePositions[] = {
+    glm::vec3( 0.0f,  0.0f,  0.0f),
+    glm::vec3( 2.0f,  5.0f, -15.0f),
+    glm::vec3(-1.5f, -2.2f, -2.5f),
+    glm::vec3(-3.8f, -2.0f, -12.3f),
+    glm::vec3( 2.4f, -0.4f, -3.5f),
+    glm::vec3(-1.7f,  3.0f, -7.5f),
+    glm::vec3( 1.3f, -2.0f, -2.5f),
+    glm::vec3( 1.5f,  2.0f, -2.5f),
+    glm::vec3( 1.5f,  0.2f, -1.5f),
+    glm::vec3(-1.3f,  1.0f, -1.5f)
+};
 glm::vec3 objectPos(0.0f);
+glm::vec3 lightColor(1.0f);
 
 int main()
 {
+    //some ImGui dependencies crap, no need apperently
+    //gladLoadGL();
     //------init GLFW, set everything and create window and context-------
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -67,128 +94,24 @@ int main()
         return -1;
     }
     //-----------------
-
-    //набор вершин для тестирования
+    //very cool and important texture y-axis flip(before loading)
+    stbi_set_flip_vertically_on_load(true);
     // TODO: написать функцию для организации этого всего, добавить использование EBO
-    //сейчас это вершины куба
-    float vertices2[] = {
-    /*position coords     tex coords*/
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
 
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-};
-
-
-    //класс для создание shader program из vertex и fragment шейдера, путь относительно билд папки
-    //TODO: Сделать более удобный доступ к шейдеру, может создать строку с путем в папку, что бы указывать только имя
-    //Shader ourShader("shaders/vertex.glsl", "shaders/fragment.glsl");
     Shader lightObjectShader("shaders/vertexLightObject.glsl", "shaders/fragmentLightObject.glsl");
     Shader lightSourceShader("shaders/vertexLightObject.glsl", "shaders/fragmentLightSource.glsl");
+    Shader simpleShader("shaders/vertex.glsl", "shaders/fragment.glsl");
     //------------------------
-
+    Model ourModel(std::string("assets/models/survival_backpack/backpack.obj"));
     //--------Genereating textures--------
-    unsigned int texture1;
-    glGenTextures(1, &texture1);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    imgload::loadPNG("textures/container.png");
-
-    //вторая текстура
-    unsigned int texture2;
-    glGenTextures(1, &texture2);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, texture2);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    imgload::loadPNG("textures/da_dude.png");
-
-    //анбиндим текстуры
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    unsigned int diffuseMap =  loadTexture("assets/textures/container2.png");
+    unsigned int specularMap = loadTexture("assets/textures/container2_specular.png");
+    unsigned int emissionMap = loadTexture("assets/textures/matrix.png");
     //--------------------------
 
-    //------Creating vertex attributes and storing them in VAO------
-    //создаем ID Vertex Array Object
-    unsigned int VAO, lightVAO;
-    //создаем ID Vertex Buffer Object для вершин.
-    unsigned int VBO;
-
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices2), vertices2, GL_STATIC_DRAW);
-
-    //отправляем position attribute 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    //отправялем texture coords attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);  
-
-    glGenVertexArrays(1, &lightVAO);
-    glBindVertexArray(lightVAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    //glBufferData - уже вызывали, все настроено
-    //отправляем position attribute 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    //отправялем texture coords attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);  
-
-    glBindVertexArray(0);
-
-    //-----------------
+    //создаем VAO простых кубов
+    unsigned int VAO =  generateCube(VAO), 
+                 lightVAO = generateCube(lightVAO);
     
     //включаем depth buffer и соотвественно depth testing
     glEnable(GL_DEPTH_TEST);  
@@ -207,22 +130,14 @@ int main()
     //переход в clip space(projection, frustum box). В нашем случае perspective
     glm::mat4 projection;
 
-/*     //setting uniforms
-    ourShader.use();
-    glUniform1i(glGetUniformLocation(ourShader.ID, "texture1"), 0);
-    ourShader.setInt("texture2", 1);
-
-    unsigned int modelLoc = glGetUniformLocation(ourShader.ID, "model");
-    unsigned int viewLoc = glGetUniformLocation(ourShader.ID, "view");
-    unsigned int projectionLoc = glGetUniformLocation(ourShader.ID, "projection");
- */
 
     lightObjectShader.use();
-    lightObjectShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-    lightObjectShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
     unsigned int modelLoc = glGetUniformLocation(lightObjectShader.ID, "model");
     unsigned int viewLoc = glGetUniformLocation(lightObjectShader.ID, "view");
     unsigned int projectionLoc = glGetUniformLocation(lightObjectShader.ID, "projection");
+    lightObjectShader.setInt("material.diffuse", 0);
+    lightObjectShader.setInt("material.specular", 1);
+    lightObjectShader.setInt("material.emission", 2);
 
     lightSourceShader.use();
     unsigned int modelLocLight = glGetUniformLocation(lightSourceShader.ID, "model");
@@ -230,80 +145,235 @@ int main()
     unsigned int projectionLocLight = glGetUniformLocation(lightSourceShader.ID, "projection");
 
 
+    simpleShader.use();
+    unsigned int modelLocModel = glGetUniformLocation(simpleShader.ID, "model");
+    unsigned int viewLocModel = glGetUniformLocation(simpleShader.ID, "view");
+    unsigned int projectionLocModel = glGetUniformLocation(simpleShader.ID, "projection");
     //Выбираем способ отрисовки примитивов. Первый прм - приминяем к передней и задней части примитива. Второй - тип отрисовки(п. - GL_LINE/GL_FILL)
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     //устанавливаем размер и положение Viewport-a OpenGL в окне
     glViewport(0,0, SCR_WIDTH, SCR_HEIGHT);
-    
+
+    float colorData[] = {1.0, 1.0, 1.0};
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
+
+
     //------render loop-------
     while(!glfwWindowShouldClose(window))
-    {
+    {   
+        //----вычисления для текщего цикла рендера----
+        float currentTime = glfwGetTime();
+        //обновляем промежуток между кадрами
+        deltaTime = currentTime - lastFrame;
+        lastFrame = currentTime;
+        //матрицы для вычсления перспективы относительно камеры
+        view = camera.GetVewMatrix();  
+        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH/(float)SCR_HEIGHT, 0.1f, 100.0f);
+        
+        pointLightPositions[3] = glm::vec3(glm::cos((float)glfwGetTime())*2.0f, 0.1f, glm::sin((float)glfwGetTime())*2.0f);
+        //-----------------------------------------------
+
         processInput(window);
 
-        //render commands go here!
-
         //выбор цвета для очистки экрана (state-setting func)
-        glClearColor(0.4f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         //установка бита колор буфера, очистка экрана заданным цветом(state-using func) и депф буфра
         glClear(GL_COLOR_BUFFER_BIT  | GL_DEPTH_BUFFER_BIT);
-        
-        //обновляем переменные с временем кадров
-        float currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
 
+        //sort of telling ImGui that we are working on a new frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
-/*         //биндим текстуры на соотвуствующие текстур юниты
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture1);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture2); */
+        //----основной рендер обжект---
+        //---обновляем юниформы и текстуры шейдера объекта---
         lightObjectShader.use();
+        //material
+        //биндим текстуры на соотвуствующие текстур юниты
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, diffuseMap);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, specularMap);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, emissionMap);
+        lightObjectShader.setFloat("material.shininess",32.0f);
+        //lights
+        //directional light
+        lightObjectShader.setVec3("directionalLight.direction", -0.2f, -1.0f, -0.3f);
+        lightObjectShader.setVec3("directionalLight.ambient", 0.1f, 0.1f, 0.1f);
+        lightObjectShader.setVec3("directionalLight.diffuse", lightColor);
+        lightObjectShader.setVec3("directionalLight.specular", 1.0f, 1.0f, 1.0f);
 
-        //оюновляем view matrix, камера двигается!
-        view = camera.GetVewMatrix();  
-        //обновляем projection matrix, fov furstum box-a меняется
-        projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH/(float)SCR_HEIGHT, 0.1f, 100.0f);
-        //обновляем юниформы-матрицы
+        //point light 1
+        lightObjectShader.setVec3("pointLight[0].position", pointLightPositions[0]);
+        lightObjectShader.setVec3("pointLight[0].ambient", 0.05f, 0.05f, 0.05f);
+        lightObjectShader.setVec3("pointLight[0].diffuse", lightColor);
+        lightObjectShader.setVec3("pointLight[0].specular", 1.0f, 1.0f, 1.0f);
+        lightObjectShader.setFloat("pointLight[0].constant",1.0f);
+        lightObjectShader.setFloat("pointLight[0].linear",0.09f);
+        lightObjectShader.setFloat("pointLight[0].quadratic",0.032f); 
+        //point light 2
+        lightObjectShader.setVec3("pointLight[1].position", pointLightPositions[1]);
+        lightObjectShader.setVec3("pointLight[1].ambient", 0.05f, 0.05f, 0.05f);
+        lightObjectShader.setVec3("pointLight[1].diffuse", lightColor);
+        lightObjectShader.setVec3("pointLight[1].specular", 1.0f, 1.0f, 1.0f);
+        lightObjectShader.setFloat("pointLight[1].constant",1.0f);
+        lightObjectShader.setFloat("pointLight[1].linear",0.09f);
+        lightObjectShader.setFloat("pointLight[1].quadratic",0.032f); 
+        //point light 3
+        lightObjectShader.setVec3("pointLight[2].position", pointLightPositions[2]);
+        lightObjectShader.setVec3("pointLight[2].ambient", 0.05f, 0.05f, 0.05f);
+        lightObjectShader.setVec3("pointLight[2].diffuse", lightColor);
+        lightObjectShader.setVec3("pointLight[2].specular", 1.0f, 1.0f, 1.0f);
+        lightObjectShader.setFloat("pointLight[2].constant",1.0f);
+        lightObjectShader.setFloat("pointLight[2].linear",0.09f);
+        lightObjectShader.setFloat("pointLight[2].quadratic",0.032f); 
+        //point light 4
+        lightObjectShader.setVec3("pointLight[3].position", pointLightPositions[3]);
+        lightObjectShader.setVec3("pointLight[3].ambient", 0.05f, 0.05f, 0.05f);
+        lightObjectShader.setVec3("pointLight[3].diffuse", lightColor);
+        lightObjectShader.setVec3("pointLight[3].specular", 1.0f, 1.0f, 1.0f);
+        lightObjectShader.setFloat("pointLight[3].constant",1.0f);
+        lightObjectShader.setFloat("pointLight[3].linear",0.09f);
+        lightObjectShader.setFloat("pointLight[3].quadratic",0.03f); 
+
+        //spotlight
+        lightObjectShader.setVec3("spotLight.position", camera.Position);
+        lightObjectShader.setVec3("spotLight.direction", camera.Front);
+        lightObjectShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
+        lightObjectShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
+        lightObjectShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
+        lightObjectShader.setFloat("spotLight.constant", 1.0f);
+        lightObjectShader.setFloat("spotLight.linear", 0.09);
+        lightObjectShader.setFloat("spotLight.quadratic", 0.03);
+        lightObjectShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
+        lightObjectShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f))); 
+        //передаем текущее время
+        lightObjectShader.setFloat("u_time", currentTime);
+        lightObjectShader.setVec3("viewPos", camera.Position);
+        //оюновляем матрицы проекции (типа?)
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-        model = glm::mat4(1.0f);
-        model =  glm::translate(model, objectPos);
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
         glBindVertexArray(VAO);
-        //теперь рендерим
+        model = glm::mat4(1.0f);
+        model =  glm::translate(model, cubePositions[4]);
+        float angle = 20.0f *4;
+        model = glm::rotate(model, glm::radians(angle),glm::vec3(1.0f, 0.3f, 0.5f));
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+
+        //---рендер лампы-куба----
+        //---обновляем юниформы шейдера освещения---
         lightSourceShader.use();
+        lightSourceShader.setVec3("lightColor", lightColor); 
         glUniformMatrix4fv(viewLocLight, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projectionLocLight, 1, GL_FALSE, glm::value_ptr(projection));
-        model = glm::mat4(1.0f);
-        model =  glm::translate(model, lightPos);
-        model = glm::scale(model, glm::vec3(0.2f)); 
-        glUniformMatrix4fv(modelLocLight, 1, GL_FALSE, glm::value_ptr(model));
-        glBindVertexArray(lightVAO);
-        //теперь рендерим свет
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        for(unsigned int i = 0; i < 4; i++)
+        {
+            model =  glm::mat4(1.0f);
+            model =  glm::translate(model, pointLightPositions[i]);
+            model =  glm::scale(model, glm::vec3(0.2f)); 
+            glUniformMatrix4fv(modelLocLight, 1, GL_FALSE, glm::value_ptr(model));
+            glBindVertexArray(lightVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+       
         glBindVertexArray(0);
+        //РЕНДЕР МОДЕЛИ!!
+        simpleShader.use();
+        glUniformMatrix4fv(viewLocModel, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projectionLocModel, 1, GL_FALSE, glm::value_ptr(projection));
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+        glUniformMatrix4fv(modelLocModel, 1, GL_FALSE, glm::value_ptr(model));
+        ourModel.Draw(simpleShader);
+
+        
+        //ImGui рендер
+        //TODO::Создавать меню по нажатию кнопки и потом обрабатывать инпут. Возможно надо перенести на другой поток
+        ImGui::Begin("My name is Imgui window amd i'm an ass to implement blyat!");
+        ImGui::Text("Hello there adventurer!");
+        ImGui::ColorEdit4("Color", colorData);
+        lightColor = glm::make_vec3(colorData);
+        ImGui::End();
+
+        //render the ui
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
         //проверяет сработало ли какое то событие, вызывает callback funtions из стека вроде(?) и обновляет состояние окна
         glfwPollEvents();
     }
     //---------------
 
+    //destroy ImGui context
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    //deallocate objects(is it needed?)
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &lightVAO);
+
     glfwTerminate();
     return 0;
 }
 
+//сгенерировать и загрузить текстуру
+unsigned int loadTexture(const char *filename)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    //загружаем и генерируем текстуру
+    int width, height, nrChannels;
+    //OpenGL ожидает 0 на оси у внизу изображения, сами изображения устанавивают 0.0 вверху оси у. Эта функция переворачивает ось у
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char *data = stbi_load(filename, &width, &height, &nrChannels, 0);
+    if(data)
+    {
+        GLenum format;
+        if (nrChannels == 1)
+            format = GL_RED;
+        if (nrChannels == 3)
+            format = GL_RGB;
+        if (nrChannels == 4)
+            format = GL_RGBA;
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    }
+    else
+    {
+        std::cout << "Failed to load texture!" << std::endl;
+    }
+    stbi_image_free(data);
+
+    return textureID;
+}
+
+
+//callbacks
 //process key presses 
 void processInput(GLFWwindow *window)
 {
     if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-    const float cameraSpeed = 2.5f * deltaTime;
     //move forward/backwards
     if(glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.ProcessKeyboard(FORWARD, deltaTime);
@@ -314,6 +384,10 @@ void processInput(GLFWwindow *window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        camera.ProcessKeyboard(UP, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+        camera.ProcessKeyboard(DOWN, deltaTime);
 }
 
 //window resize callback
@@ -344,4 +418,74 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(yoffset);
+}
+
+//------Creating simple cube vertex attributes and storing them in VAO------
+//@note может передавать VAO по ссылке? не по значению. Тогда оно будет менятся в функции, что собсна и надо, и ретерна не будет
+unsigned int generateCube(unsigned int VAO)
+{
+    float vertices[] = {
+    /*position coords     normals             tex coords*/
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, -1.0f,  0.0f, 0.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 0.0f, -1.0f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  0.0f, 0.0f, -1.0f,  1.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f, 0.0f, -1.0f,  1.0f, 1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 0.0f, -1.0f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f, -1.0f,  0.0f, 0.0f,
+
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, 1.0f,   0.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, 0.0f, 1.0f,   1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f, 0.0f, 1.0f,   1.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f, 0.0f, 1.0f,   1.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f, 1.0f,   0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, 1.0f,   0.0f, 0.0f,
+
+    -0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f,   1.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f, -1.0f, 0.0f, 0.0f,   1.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f,   0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f,   0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f, -1.0f, 0.0f, 0.0f,   0.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f,   1.0f, 0.0f,
+
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 0.0f,   1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 0.0f, 0.0f,   1.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f,   0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f,   0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 0.0f,   0.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 0.0f,   1.0f, 0.0f,
+ 
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f, 0.0f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, -1.0f, 0.0f,  1.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f, 0.0f,  1.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, -1.0f, 0.0f,  1.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f, 0.0f,  0.0f, 0.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f, 0.0f,  0.0f, 1.0f,
+ 
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,   0.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,   1.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  0.0f, 1.0f, 0.0f,   1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f, 1.0f, 0.0f,   1.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f, 0.0f,   0.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f,   0.0f, 1.0f
+};
+
+    unsigned int VBO;
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    //position attribute 
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    //normals attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);    
+    //texture coords attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    glBindVertexArray(0);
+    glDeleteBuffers(1, &VBO);
+    return VAO;
 }
